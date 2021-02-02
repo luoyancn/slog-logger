@@ -1,5 +1,5 @@
 [package]
-name = "logger"
+name = "slog-logger"
 version = "0.1.0"
 authors = ["luciferchn@gmail.com"]
 edition = "2018"
