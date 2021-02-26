@@ -35,9 +35,11 @@ pub fn initlogger(
             .use_custom_timestamp(timestamp_custom)
             .build(),
     );
-    let mut drain_filter = slog::LevelFilter::new(drain, slog::Level::Trace);
+    let drain_filter;
     if !debug {
-        drain_filter = drain_filter.filter_level(slog::Level::Info).0;
+        drain_filter = slog::LevelFilter::new(drain, slog::Level::Info);
+    } else {
+        drain_filter = slog::LevelFilter::new(drain, slog::Level::Trace);
     }
     if duplicate {
         let adapter = FileAppender::new(logfile, false, filesize, 2, true);
@@ -45,9 +47,11 @@ pub fn initlogger(
         let drain_file = slog_term::FullFormat::new(decorator_file)
             .use_custom_timestamp(timestamp_custom)
             .build();
-        let mut drain_file_filter = slog::LevelFilter::new(drain_file, slog::Level::Trace);
+        let drain_file_filter;
         if !debug {
-            drain_file_filter = drain_file_filter.filter_level(slog::Level::Info).0;
+            drain_file_filter = slog::LevelFilter::new(drain_file, slog::Level::Info);
+        } else {
+            drain_file_filter = slog::LevelFilter::new(drain_file, slog::Level::Trace);
         }
 
         if !detail {
