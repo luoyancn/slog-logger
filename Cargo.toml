@@ -10,4 +10,4 @@ edition = "2018"
 chrono = "0.4.19"
 slog = "2.7.0"
 slog-term = "2.6.0"
-slog-filerotate = {git = "https://github.com/luoyancn/slog-filerotate", tag = "v0.1.0"}
+slog-filerotate = {git = "https://github.com/luoyancn/slog-filerotate", tag = "v0.2.0"}
