@@ -1,4 +1,4 @@
-use std::io;
+use std::io::{self, Write};
 use std::sync::Mutex;
 
 extern crate chrono;
@@ -7,9 +7,9 @@ extern crate slog;
 extern crate slog_filerotate;
 extern crate slog_term;
 
-use slog::Drain;
-use slog::FnValue;
+use slog::{Drain, Record};
 use slog_filerotate::FileAppender;
+use slog_term::{CountingWriter, RecordDecorator, ThreadSafeTimestampFn};
 
 const TIMESTAMP_FORMAT: &str = "%Y-%m-%d %H:%M:%S%.9f";
 
@@ -22,6 +22,40 @@ fn timestamp_custom(io: &mut dyn io::Write) -> io::Result<()> {
     write!(io, "{}", chrono::Local::now().format(TIMESTAMP_FORMAT))
 }
 
+fn custom_print_msg_header(
+    fn_timestamp: &dyn ThreadSafeTimestampFn<Output = io::Result<()>>,
+    mut rd: &mut dyn RecordDecorator,
+    record: &Record,
+    use_file_location: bool,
+) -> io::Result<bool> {
+    rd.start_timestamp()?;
+    fn_timestamp(&mut rd)?;
+
+    rd.start_whitespace()?;
+    write!(rd, " ")?;
+
+    rd.start_level()?;
+    write!(rd, "[{:<8}]", record.level().as_str())?;
+    if use_file_location {
+        rd.start_whitespace()?;
+        write!(rd, " ")?;
+        rd.start_location()?;
+        write!(
+            rd,
+            "[{}:{}]",
+            record.location().file,
+            record.location().line,
+        )?;
+    }
+    rd.start_whitespace()?;
+    write!(rd, " ")?;
+
+    rd.start_msg()?;
+    let mut count_rd = CountingWriter::new(&mut rd);
+    write!(count_rd, "{}", record.msg())?;
+    Ok(count_rd.count() != 0)
+}
+
 pub fn initlogger(
     duplicate: bool,
     logfile: &str,
@@ -30,11 +64,13 @@ pub fn initlogger(
     detail: bool,
 ) -> slog::Logger {
     let decorator = slog_term::TermDecorator::new().build();
-    let drain = Mutex::new(
-        slog_term::FullFormat::new(decorator)
-            .use_custom_timestamp(timestamp_custom)
-            .build(),
-    );
+    let mut iner = slog_term::FullFormat::new(decorator)
+        .use_custom_timestamp(timestamp_custom)
+        .use_custom_header_print(custom_print_msg_header);
+    if detail {
+        iner = iner.use_file_location();
+    }
+    let drain = Mutex::new(iner.build());
     let drain_filter;
     if !debug {
         drain_filter = slog::LevelFilter::new(drain, slog::Level::Info);
@@ -44,9 +80,14 @@ pub fn initlogger(
     if duplicate {
         let adapter = FileAppender::new(logfile, false, filesize, 2, true);
         let decorator_file = slog_term::PlainSyncDecorator::new(adapter);
-        let drain_file = slog_term::FullFormat::new(decorator_file)
+        let mut file_iner = slog_term::FullFormat::new(decorator_file)
             .use_custom_timestamp(timestamp_custom)
-            .build();
+            .use_custom_header_print(custom_print_msg_header);
+        if detail {
+            file_iner = file_iner.use_file_location();
+        }
+
+        let drain_file = file_iner.build();
         let drain_file_filter;
         if !debug {
             drain_file_filter = slog::LevelFilter::new(drain_file, slog::Level::Info);
@@ -54,26 +95,12 @@ pub fn initlogger(
             drain_file_filter = slog::LevelFilter::new(drain_file, slog::Level::Trace);
         }
 
-        if !detail {
-            slog::Logger::root(
-                slog::Duplicate::new(drain_file_filter, drain_filter).fuse(),
-                o!(),
-            )
-        } else {
-            slog::Logger::root(
-                slog::Duplicate::new(drain_file_filter, drain_filter).fuse(),
-                o!("place" => FnValue( move |info| { format!("{}:{} {}", info.file(), info.line(), info.module())})),
-            )
-        }
+        slog::Logger::root(
+            slog::Duplicate::new(drain_file_filter, drain_filter).fuse(),
+            o!(),
+        )
     } else {
-        if !detail {
-            slog::Logger::root(drain_filter.fuse(), o!())
-        } else {
-            slog::Logger::root(
-                drain_filter.fuse(),
-                o!("place" => FnValue( move |info| { format!("{}:{} {}", info.file(), info.line(), info.module())})),
-            )
-        }
+        slog::Logger::root(drain_filter.fuse(), o!())
     }
 }
 
