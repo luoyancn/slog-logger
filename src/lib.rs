@@ -26,6 +26,11 @@ macro_rules! crit( ($($args:tt)+) => {
 };);
 
 #[macro_export]
+macro_rules! error( ($($args:tt)+) => {
+    slog_scope::error![$($args)+]
+};);
+
+#[macro_export]
 macro_rules! warn( ($($args:tt)+) => {
     slog_scope::warn![$($args)+]
 };);
