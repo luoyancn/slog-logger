@@ -6,6 +6,7 @@ extern crate chrono;
 extern crate slog;
 extern crate slog_filerotate;
 extern crate slog_term;
+extern crate slog_scope;
 
 use slog::{Drain, Record};
 use slog_filerotate::FileAppender;
@@ -17,6 +18,32 @@ pub const BITE: u64 = 1;
 pub const KB: u64 = BITE * 1024;
 pub const MB: u64 = KB * 1024;
 pub const GB: u64 = MB * 1024;
+
+#[macro_export]
+macro_rules! crit( ($($args:tt)+) => {
+    slog_scope::crit![$($args)+];
+    std::process::exit(-1);
+};);
+
+#[macro_export]
+macro_rules! warn( ($($args:tt)+) => {
+    slog_scope::warn![$($args)+]
+};);
+
+#[macro_export]
+macro_rules! info( ($($args:tt)+) => {
+    slog_scope::info![$($args)+]
+};);
+
+#[macro_export]
+macro_rules! debug( ($($args:tt)+) => {
+    slog_scope::debug![$($args)+]
+};);
+
+#[macro_export]
+macro_rules! trace( ($($args:tt)+) => {
+    slog_scope::trace![$($args)+]
+};);
 
 fn timestamp_custom(io: &mut dyn io::Write) -> io::Result<()> {
     write!(io, "{}", chrono::Local::now().format(TIMESTAMP_FORMAT))
