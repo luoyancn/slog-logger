@@ -5,8 +5,9 @@ extern crate chrono;
 #[macro_use]
 extern crate slog;
 extern crate slog_filerotate;
-extern crate slog_term;
 extern crate slog_scope;
+extern crate slog_stdlog;
+extern crate slog_term;
 
 use slog::{Drain, Record};
 use slog_filerotate::FileAppender;
@@ -88,7 +89,7 @@ fn custom_print_msg_header(
     Ok(count_rd.count() != 0)
 }
 
-pub fn initlogger(
+fn initlogger(
     duplicate: bool,
     logfile: &str,
     filesize: u64,
@@ -134,6 +135,13 @@ pub fn initlogger(
     } else {
         slog::Logger::root(drain_filter.fuse(), o!())
     }
+}
+
+pub fn setup_logger(duplicate: bool, logfile: &str, filesize: u64, debug: bool, detail: bool) {
+    let logger = initlogger(duplicate, logfile, filesize, debug, detail);
+    let guard = slog_scope::set_global_logger(logger);
+    slog_stdlog::init().unwrap();
+    guard.cancel_reset();
 }
 
 #[cfg(test)]
