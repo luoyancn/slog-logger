@@ -11,6 +11,10 @@ extern crate slog_term;
 
 use slog::{Drain, Record};
 use slog_filerotate::FileAppender;
+pub use slog_scope::{
+    crit as slog_scope_crit, debug as slog_scope_debug, error as slog_scope_error,
+    info as slog_scope_info, trace as slog_scope_trace, warn as slog_scope_warn,
+};
 use slog_term::{CountingWriter, RecordDecorator, ThreadSafeTimestampFn};
 
 const TIMESTAMP_FORMAT: &str = "%Y-%m-%d %H:%M:%S%.9f";
@@ -22,33 +26,33 @@ pub const GB: u64 = MB * 1024;
 
 #[macro_export]
 macro_rules! crit( ($($args:tt)+) => {
-    slog_scope::crit![$($args)+];
+    $crate::slog_scope_crit![$($args)+];
     std::process::exit(-1);
 };);
 
 #[macro_export]
 macro_rules! error( ($($args:tt)+) => {
-    slog_scope::error![$($args)+]
+    $crate::slog_scope_error![$($args)+]
 };);
 
 #[macro_export]
 macro_rules! warn( ($($args:tt)+) => {
-    slog_scope::warn![$($args)+]
+    $crate::slog_scope_warn![$($args)+]
 };);
 
 #[macro_export]
 macro_rules! info( ($($args:tt)+) => {
-    slog_scope::info![$($args)+]
+    $crate::slog_scope_info![$($args)+]
 };);
 
 #[macro_export]
 macro_rules! debug( ($($args:tt)+) => {
-    slog_scope::debug![$($args)+]
+    $crate::slog_scope_debug![$($args)+]
 };);
 
 #[macro_export]
 macro_rules! trace( ($($args:tt)+) => {
-    slog_scope::trace![$($args)+]
+    $crate::slog_scope_trace![$($args)+]
 };);
 
 fn timestamp_custom(io: &mut dyn io::Write) -> io::Result<()> {
