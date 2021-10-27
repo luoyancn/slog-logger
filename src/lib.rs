@@ -99,6 +99,7 @@ fn initlogger(
     filesize: u64,
     debug: bool,
     detail: bool,
+    verbose: bool,
 ) -> slog::Logger {
     let decorator = slog_term::TermDecorator::new().build();
     let mut iner = slog_term::FullFormat::new(decorator)
@@ -112,7 +113,11 @@ fn initlogger(
     if !debug {
         drain_filter = slog::LevelFilter::new(drain, slog::Level::Info);
     } else {
-        drain_filter = slog::LevelFilter::new(drain, slog::Level::Trace);
+        if verbose {
+            drain_filter = slog::LevelFilter::new(drain, slog::Level::Trace);
+        } else {
+            drain_filter = slog::LevelFilter::new(drain, slog::Level::Debug);
+        }
     }
     if duplicate {
         let adapter = FileAppender::new(logfile, false, filesize, 2, true);
@@ -129,7 +134,11 @@ fn initlogger(
         if !debug {
             drain_file_filter = slog::LevelFilter::new(drain_file, slog::Level::Info);
         } else {
-            drain_file_filter = slog::LevelFilter::new(drain_file, slog::Level::Trace);
+            if verbose {
+                drain_file_filter = slog::LevelFilter::new(drain_file, slog::Level::Trace);
+            } else {
+                drain_file_filter = slog::LevelFilter::new(drain_file, slog::Level::Debug);
+            }
         }
 
         slog::Logger::root(
@@ -141,8 +150,15 @@ fn initlogger(
     }
 }
 
-pub fn setup_logger(duplicate: bool, logfile: &str, filesize: u64, debug: bool, detail: bool) {
-    let logger = initlogger(duplicate, logfile, filesize, debug, detail);
+pub fn setup_logger(
+    duplicate: bool,
+    logfile: &str,
+    filesize: u64,
+    debug: bool,
+    detail: bool,
+    verbose: bool,
+) {
+    let logger = initlogger(duplicate, logfile, filesize, debug, detail, verbose);
     let guard = slog_scope::set_global_logger(logger);
     slog_stdlog::init().unwrap();
     guard.cancel_reset();

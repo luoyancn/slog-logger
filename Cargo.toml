@@ -2,7 +2,6 @@
 name = "slog-logger"
 version = "0.1.0"
 authors = ["luciferchn@gmail.com"]
-edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -12,4 +11,4 @@ slog = "2.7.0"
 slog-scope = "4.4.0"
 slog-term = "2.8.0"
 slog-stdlog = "4.1.0"
-slog-filerotate = {git = "https://github.com/luoyancn/slog-filerotate", tag = "v0.2.0"}
+slog-filerotate = {git = "https://github.com/luoyancn/slog-filerotate", tag = "v0.3.0"}
