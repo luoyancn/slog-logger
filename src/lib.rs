@@ -100,6 +100,8 @@ fn initlogger(
     debug: bool,
     detail: bool,
     verbose: bool,
+    keep_num: usize,
+    compress: bool,
 ) -> slog::Logger {
     let decorator = slog_term::TermDecorator::new().build();
     let mut iner = slog_term::FullFormat::new(decorator)
@@ -120,7 +122,7 @@ fn initlogger(
         }
     }
     if duplicate {
-        let adapter = FileAppender::new(logfile, false, filesize, 2, true);
+        let adapter = FileAppender::new(logfile, false, filesize, keep_num, compress);
         let decorator_file = slog_term::PlainSyncDecorator::new(adapter);
         let mut file_iner = slog_term::FullFormat::new(decorator_file)
             .use_custom_timestamp(timestamp_custom)
@@ -157,8 +159,12 @@ pub fn setup_logger(
     debug: bool,
     detail: bool,
     verbose: bool,
+    keep_num: usize,
+    compress: bool,
 ) {
-    let logger = initlogger(duplicate, logfile, filesize, debug, detail, verbose);
+    let logger = initlogger(
+        duplicate, logfile, filesize, debug, detail, verbose, keep_num, compress,
+    );
     let guard = slog_scope::set_global_logger(logger);
     slog_stdlog::init().unwrap();
     guard.cancel_reset();
