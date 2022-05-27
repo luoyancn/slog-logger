@@ -94,7 +94,8 @@ fn custom_print_msg_header(
 }
 
 fn initlogger(
-    duplicate: bool,
+    std_enabled: bool,
+    file_enabled: bool,
     logfile: &str,
     filesize: u64,
     debug: bool,
@@ -103,25 +104,39 @@ fn initlogger(
     keep_num: usize,
     compress: bool,
 ) -> slog::Logger {
-    let decorator = slog_term::TermDecorator::new().build();
-    let mut iner = slog_term::FullFormat::new(decorator)
-        .use_custom_timestamp(timestamp_custom)
-        .use_custom_header_print(custom_print_msg_header);
-    if detail {
-        iner = iner.use_file_location();
-    }
-    let drain = Mutex::new(iner.build());
-    let drain_filter;
-    if !debug {
-        drain_filter = slog::LevelFilter::new(drain, slog::Level::Info);
-    } else {
-        if verbose {
-            drain_filter = slog::LevelFilter::new(drain, slog::Level::Trace);
+    fn __get_std_drain__<D: Drain>(
+        debug: bool,
+        verbose: bool,
+        detail: bool,
+    ) -> slog::LevelFilter<std::sync::Mutex<slog_term::FullFormat<slog_term::TermDecorator>>> {
+        let decorator = slog_term::TermDecorator::new().build();
+        let mut iner = slog_term::FullFormat::new(decorator)
+            .use_custom_timestamp(timestamp_custom)
+            .use_custom_header_print(custom_print_msg_header);
+        if detail {
+            iner = iner.use_file_location();
+        }
+        let drain = Mutex::new(iner.build());
+        if !debug {
+            slog::LevelFilter::new(drain, slog::Level::Info)
         } else {
-            drain_filter = slog::LevelFilter::new(drain, slog::Level::Debug);
+            if verbose {
+                slog::LevelFilter::new(drain, slog::Level::Trace)
+            } else {
+                slog::LevelFilter::new(drain, slog::Level::Debug)
+            }
         }
     }
-    if duplicate {
+
+    fn __get_file_drain__<D: Drain>(
+        logfile: &str,
+        filesize: u64,
+        debug: bool,
+        verbose: bool,
+        detail: bool,
+        keep_num: usize,
+        compress: bool,
+    ) -> slog::LevelFilter<slog_term::FullFormat<slog_term::PlainSyncDecorator<FileAppender>>> {
         let adapter = FileAppender::new(logfile, false, filesize, keep_num, compress);
         let decorator_file = slog_term::PlainSyncDecorator::new(adapter);
         let mut file_iner = slog_term::FullFormat::new(decorator_file)
@@ -130,30 +145,57 @@ fn initlogger(
         if detail {
             file_iner = file_iner.use_file_location();
         }
-
         let drain_file = file_iner.build();
-        let drain_file_filter;
         if !debug {
-            drain_file_filter = slog::LevelFilter::new(drain_file, slog::Level::Info);
+            slog::LevelFilter::new(drain_file, slog::Level::Info)
         } else {
             if verbose {
-                drain_file_filter = slog::LevelFilter::new(drain_file, slog::Level::Trace);
+                slog::LevelFilter::new(drain_file, slog::Level::Trace)
             } else {
-                drain_file_filter = slog::LevelFilter::new(drain_file, slog::Level::Debug);
+                slog::LevelFilter::new(drain_file, slog::Level::Debug)
             }
         }
+    }
 
+    if file_enabled && std_enabled {
         slog::Logger::root(
-            slog::Duplicate::new(drain_file_filter, drain_filter).fuse(),
+            slog::Duplicate::new(
+                __get_std_drain__::<
+                    std::sync::Mutex<slog_term::FullFormat<slog_term::TermDecorator>>,
+                >(debug, verbose, detail),
+                __get_file_drain__::<
+                    slog_term::FullFormat<slog_term::PlainSyncDecorator<FileAppender>>,
+                >(
+                    logfile, filesize, debug, verbose, detail, keep_num, compress,
+                ),
+            )
+            .fuse(),
+            o!(),
+        )
+    } else if file_enabled && !std_enabled {
+        slog::Logger::root(
+            __get_file_drain__::<slog_term::FullFormat<slog_term::PlainSyncDecorator<FileAppender>>>(
+                logfile, filesize, debug, verbose, detail, keep_num, compress,
+            )
+            .fuse(),
+            o!(),
+        )
+    } else if !file_enabled && std_enabled {
+        slog::Logger::root(
+            __get_std_drain__::<std::sync::Mutex<slog_term::FullFormat<slog_term::TermDecorator>>>(
+                debug, verbose, detail,
+            )
+            .fuse(),
             o!(),
         )
     } else {
-        slog::Logger::root(drain_filter.fuse(), o!())
+        slog::Logger::root(slog::Discard, o!())
     }
 }
 
 pub fn setup_logger(
-    duplicate: bool,
+    std_enabled: bool,
+    file_enabled: bool,
     logfile: &str,
     filesize: u64,
     debug: bool,
@@ -163,7 +205,15 @@ pub fn setup_logger(
     compress: bool,
 ) {
     let logger = initlogger(
-        duplicate, logfile, filesize, debug, detail, verbose, keep_num, compress,
+        std_enabled,
+        file_enabled,
+        logfile,
+        filesize,
+        debug,
+        detail,
+        verbose,
+        keep_num,
+        compress,
     );
     let guard = slog_scope::set_global_logger(logger);
     slog_stdlog::init().unwrap();
